@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Mohamed’s SQL Playground</title>
-  <meta name="description" content="Practice SQL for data engineering interviews in your browser. SQLite (sql.js), schema explorer, saved queries, CSV import." />
+  <title>Mohamed’s SQL Playground — Snowflake Style</title>
+  <meta name="description" content="Practice Snowflake-flavored SQL in your browser. SQLite (sql.js) with a translation layer: DESCRIBE, SHOW, ILIKE, DATE_TRUNC, and more." />
   <meta name="theme-color" content="#0f172a" />
 
   <!-- Tailwind -->
@@ -13,9 +13,7 @@
     tailwind.config = {
       darkMode: 'class',
       theme: {
-        extend: {
-          boxShadow: { glow: '0 0 40px rgba(99,102,241,.35)' }
-        }
+        extend: { boxShadow: { glow: '0 0 40px rgba(99,102,241,.35)' } }
       }
     }
   </script>
@@ -54,12 +52,11 @@
       <div class="flex items-center gap-3">
         <span class="text-2xl">🧠</span>
         <a href="#" class="font-extrabold text-xl md:text-2xl">Mohamed’s SQL Playground</a>
-        <span class="hidden md:inline text-sm text-gray-500 dark:text-gray-400 ml-2">Practice SQL for DE interviews</span>
+        <span class="hidden md:inline text-sm text-gray-500 dark:text-gray-400 ml-2">Snowflake-style commands</span>
       </div>
       <div class="flex items-center gap-2">
-        <button id="theme-toggle" class="px-3 py-1.5 text-sm rounded-lg bg-gray-200 dark:bg-gray-700">
-          🌗 Theme
-        </button>
+        <span id="context-chip" class="px-2 py-1 text-xs rounded bg-indigo-100 text-indigo-800 dark:bg-indigo-900/40 dark:text-indigo-200">DB: MAIN • SCHEMA: PUBLIC</span>
+        <button id="theme-toggle" class="px-3 py-1.5 text-sm rounded-lg bg-gray-200 dark:bg-gray-700">🌗 Theme</button>
         <a href="https://github.com/kmsmohamedansar/sql-playground" target="_blank" class="px-3 py-1.5 text-sm rounded-lg bg-indigo-600 text-white hover:bg-indigo-700">GitHub</a>
       </div>
     </div>
@@ -70,22 +67,17 @@
     <!-- Sidebar -->
     <aside class="bg-white dark:bg-gray-800 rounded-xl shadow p-4 h-fit">
       <h2 class="font-semibold text-lg mb-2">📚 Schema</h2>
-      <div id="schema" class="space-y-3 text-sm">
-        <!-- Tables populated by JS -->
-      </div>
+      <div id="schema" class="space-y-3 text-sm"></div>
 
       <hr class="my-4 border-gray-200 dark:border-gray-700">
 
       <h2 class="font-semibold text-lg mb-2">🧩 Samples</h2>
       <div class="space-y-2 text-sm">
-        <button class="w-full text-left px-3 py-2 rounded bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600"
-                data-example="employees-by-dept">Employees by Dept (JOIN)</button>
-        <button class="w-full text-left px-3 py-2 rounded bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600"
-                data-example="top-earners">Top Earners per Dept (Window)</button>
-        <button class="w-full text-left px-3 py-2 rounded bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600"
-                data-example="monthly-sales">Monthly Sales (CTE + GROUP)</button>
-        <button class="w-full text-left px-3 py-2 rounded bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600"
-                data-example="customer-ltv">Customer LTV (Aggregates)</button>
+        <button class="w-full text-left px-3 py-2 rounded bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600" data-example="sf-describe">DESCRIBE TABLE employees;</button>
+        <button class="w-full text-left px-3 py-2 rounded bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600" data-example="sf-show-tables">SHOW TABLES;</button>
+        <button class="w-full text-left px-3 py-2 rounded bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600" data-example="sf-ilike">SELECT * FROM customers WHERE name ILIKE '%co%';</button>
+        <button class="w-full text-left px-3 py-2 rounded bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600" data-example="sf-date-trunc">SELECT DATE_TRUNC('month', order_date) AS month, ROUND(SUM(amount),2) AS revenue FROM orders GROUP BY 1 ORDER BY 1;</button>
+        <button class="w-full text-left px-3 py-2 rounded bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600" data-example="join-top">-- Top earners per dept (window)\nWITH r AS (\n  SELECT e.*, d.name AS dept,\n         DENSE_RANK() OVER (PARTITION BY department_id ORDER BY salary DESC) AS rnk\n  FROM employees e JOIN departments d ON e.department_id = d.id\n)\nSELECT id,name,dept,salary FROM r WHERE rnk=1 ORDER BY dept,name;</button>
       </div>
 
       <hr class="my-4 border-gray-200 dark:border-gray-700">
@@ -116,13 +108,16 @@
       <!-- Editor Card -->
       <div class="bg-white dark:bg-gray-800 rounded-xl shadow p-4">
         <div class="flex items-center justify-between flex-wrap gap-2 mb-2">
-          <h2 class="font-semibold text-lg">🧪 Query Editor</h2>
+          <h2 class="font-semibold text-lg">🧪 Query Editor (Snowflake style accepted)</h2>
           <div class="text-xs text-gray-500 dark:text-gray-400">Tip: <kbd class="px-1.5 py-0.5 bg-gray-200 dark:bg-gray-700 rounded">Ctrl/Cmd + Enter</kbd> to run</div>
         </div>
         <textarea id="sql-input" rows="8"
           class="w-full p-3 rounded border bg-gray-50 dark:bg-gray-900 dark:border-gray-700"
-        >-- Try some queries!
-SELECT * FROM employees LIMIT 5;</textarea>
+        >-- Try Snowflake style:
+DESCRIBE TABLE employees;
+SHOW TABLES;
+SELECT * FROM customers WHERE name ILIKE '%co%';
+SELECT DATE_TRUNC('month', order_date) AS month, SUM(amount) FROM orders GROUP BY 1;</textarea>
 
         <div class="mt-3 flex items-center gap-2 flex-wrap">
           <button id="run" class="px-4 py-2 rounded bg-indigo-600 text-white hover:bg-indigo-700 shadow">▶ Run (Ctrl/Cmd+Enter)</button>
@@ -151,16 +146,16 @@ SELECT * FROM employees LIMIT 5;</textarea>
         <ul class="list-disc pl-6 text-sm space-y-1 text-gray-700 dark:text-gray-300">
           <li>Return employee name, department name, and salary (JOIN employees ↔ departments).</li>
           <li>For each department, show the top earner (window function: RANK/DENSE_RANK).</li>
-          <li>Monthly revenue from <code>orders</code> (CTE + DATE functions), sorted descending.</li>
+          <li>Monthly revenue from <code>orders</code> (DATE_TRUNC) sorted descending.</li>
           <li>Customer lifetime value: total amount and first order date per customer.</li>
-          <li>Find projects with no assigned employees (LEFT JOIN anti-join).</li>
+          <li>Projects with no assigned employees (LEFT JOIN anti-join).</li>
         </ul>
       </div>
     </section>
   </main>
 
   <footer class="text-center py-6 text-gray-500 dark:text-gray-400 text-sm">
-    Built by Mohamed • sql.js + Tailwind • <a href="https://github.com/kmsmohamedansar/sql-playground" target="_blank" class="underline">Source</a>
+    Built by Mohamed • Snowflake-style on SQLite • <a href="https://github.com/kmsmohamedansar/sql-playground" target="_blank" class="underline">Source</a>
   </footer>
 
   <script>
@@ -169,61 +164,33 @@ SELECT * FROM employees LIMIT 5;</textarea>
       const btn = document.getElementById('theme-toggle');
       const root = document.documentElement;
       function setTheme(t){ root.classList.toggle('dark', t === 'dark'); try{ localStorage.setItem('theme', t); }catch(_){} }
-      btn?.addEventListener('click', ()=>{
-        setTheme(root.classList.contains('dark') ? 'light' : 'dark');
-      });
+      btn?.addEventListener('click', ()=> setTheme(root.classList.contains('dark') ? 'light' : 'dark'));
     })();
 
     // GLOBALS
     let db;                 // SQL.js Database instance
     let lastRows = [];      // Last result rows for CSV copy/download
     let lastColumns = [];   // Last result columns
+    let currentDB = 'MAIN';
+    let currentSchema = 'PUBLIC';
 
-    // EXAMPLE QUERIES
-    const EXAMPLES = {
-      "employees-by-dept": `SELECT e.id, e.name, d.name AS department, e.salary
-FROM employees e
-JOIN departments d ON e.department_id = d.id
-ORDER BY d.name, e.salary DESC;`,
-      "top-earners": `WITH ranked AS (
-  SELECT e.*, d.name AS department,
-         DENSE_RANK() OVER (PARTITION BY department_id ORDER BY salary DESC) AS rnk
-  FROM employees e
-  JOIN departments d ON e.department_id = d.id
-)
-SELECT id, name, department, salary
-FROM ranked
-WHERE rnk = 1
-ORDER BY department, name;`,
-      "monthly-sales": `WITH normalized AS (
-  SELECT date(order_date) AS d, amount
-  FROM orders
-)
-SELECT strftime('%Y-%m', d) AS month, ROUND(SUM(amount), 2) AS revenue
-FROM normalized
-GROUP BY month
-ORDER BY month DESC;`,
-      "customer-ltv": `SELECT c.id, c.name,
-       ROUND(SUM(o.amount),2)  AS total_spent,
-       MIN(date(o.order_date)) AS first_order,
-       COUNT(o.id)             AS orders
-FROM customers c
-LEFT JOIN orders o ON o.customer_id = c.id
-GROUP BY c.id, c.name
-ORDER BY total_spent DESC NULLS LAST;`
-    };
+    // Update header chip
+    function refreshContextChip(){
+      const chip = document.getElementById('context-chip');
+      chip.textContent = `DB: ${currentDB} • SCHEMA: ${currentSchema}`;
+    }
 
-    // SIMPLE SQL "FORMATTER" (very light touch)
+    // LIGHT SQL FORMATTER
     function formatSQL(sql){
       return sql
         .replace(/\s+/g,' ')
-        .replace(/\b(select|from|where|group by|order by|left join|join|inner join|outer join|with|on|limit|offset|having)\b/gi, s => s.toUpperCase())
+        .replace(/\b(select|from|where|group by|order by|left join|join|inner join|outer join|with|on|limit|offset|having|qualify)\b/gi, s => s.toUpperCase())
         .replace(/,\s*/g, ', ')
         .replace(/\s*;\s*$/, ';')
         .trim();
     }
 
-    // RENDER TABLE UTILS
+    // CSV UTILS
     function toCSV(columns, rows){
       const esc = v => {
         if (v === null || v === undefined) return '';
@@ -233,29 +200,22 @@ ORDER BY total_spent DESC NULLS LAST;`
       return [columns.join(','), ...rows.map(r => r.map(esc).join(','))].join('\n');
     }
 
+    // RENDER TABLE
     function renderTable(container, columns, rows){
       const tbl = document.createElement('table');
       tbl.className = 'table-auto border-collapse border border-gray-300 dark:border-gray-700 w-full';
-
       const thead = document.createElement('thead');
       thead.innerHTML = '<tr>' + columns.map(c => `<th class="border px-2 py-1 bg-gray-100 dark:bg-gray-700 text-left">${c}</th>`).join('') + '</tr>';
       const tbody = document.createElement('tbody');
-
       rows.forEach(r => {
         const tr = document.createElement('tr');
         r.forEach(v => {
-          const td = document.createElement('td');
-          td.className = 'border px-2 py-1';
-          td.textContent = v;
-          tr.appendChild(td);
+          const td = document.createElement('td'); td.className = 'border px-2 py-1'; td.textContent = v; tr.appendChild(td);
         });
         tbody.appendChild(tr);
       });
-
-      tbl.appendChild(thead);
-      tbl.appendChild(tbody);
-      container.innerHTML = '';
-      container.appendChild(tbl);
+      tbl.appendChild(thead); tbl.appendChild(tbody);
+      container.innerHTML = ''; container.appendChild(tbl);
     }
 
     // SCHEMA EXPLORER
@@ -267,18 +227,13 @@ ORDER BY total_spent DESC NULLS LAST;`
       if (!tables.length) { schemaEl.textContent = 'No tables'; return; }
 
       tables[0].values.forEach(([tname]) => {
-        // columns
         const cols = db.exec(`PRAGMA table_info(${tname});`)[0]?.values || [];
         const count = db.exec(`SELECT COUNT(*) AS n FROM ${tname};`)[0]?.values?.[0]?.[0] ?? 0;
-
         const wrap = document.createElement('div');
         wrap.className = 'border border-gray-200 dark:border-gray-700 rounded-lg';
-
         const header = document.createElement('div');
         header.className = 'px-3 py-2 bg-gray-50 dark:bg-gray-900 flex items-center justify-between cursor-pointer rounded-t-lg';
         header.innerHTML = `<div class="font-medium">${tname}</div><div class="text-xs text-gray-500">${count} rows</div>`;
-        wrap.appendChild(header);
-
         const body = document.createElement('div');
         body.className = 'px-3 py-2 hidden';
         body.innerHTML = '<ul class="text-xs text-gray-600 dark:text-gray-300 space-y-1">' +
@@ -288,25 +243,15 @@ ORDER BY total_spent DESC NULLS LAST;`
              <button class="px-2 py-1 text-xs rounded bg-gray-200 dark:bg-gray-700" data-preview="${tname}">Preview</button>
              <button class="px-2 py-1 text-xs rounded bg-gray-200 dark:bg-gray-700" data-insert="${tname}">Insert SELECT</button>
            </div>`;
-        wrap.appendChild(body);
-
         header.addEventListener('click', ()=> body.classList.toggle('hidden'));
-        schemaEl.appendChild(wrap);
+        wrap.appendChild(header); wrap.appendChild(body); schemaEl.appendChild(wrap);
       });
 
-      // wire preview/insert
       schemaEl.querySelectorAll('[data-preview]').forEach(btn=>{
-        btn.addEventListener('click', ()=>{
-          const t = btn.getAttribute('data-preview');
-          setSQL(`SELECT * FROM ${t} LIMIT 20;`);
-          runSQL();
-        });
+        btn.addEventListener('click', ()=> { setSQL(`SELECT * FROM ${btn.getAttribute('data-preview')} LIMIT 20;`); runSQL(); });
       });
       schemaEl.querySelectorAll('[data-insert]').forEach(btn=>{
-        btn.addEventListener('click', ()=>{
-          const t = btn.getAttribute('data-insert');
-          insertSQL(`\nSELECT * FROM ${t} LIMIT 20;`);
-        });
+        btn.addEventListener('click', ()=> insertSQL(`\nSELECT * FROM ${btn.getAttribute('data-insert')} LIMIT 20;`));
       });
     }
 
@@ -315,43 +260,142 @@ ORDER BY total_spent DESC NULLS LAST;`
     function setSQL(v){ document.getElementById('sql-input').value = v; }
     function insertSQL(s){ const el = document.getElementById('sql-input'); el.value += s; el.focus(); }
 
+    // --- SNOWFLAKE TRANSLATION LAYER ---
+    // Returns { sql, synthetic }:
+    //  - sql: rewritten SQLite-compatible SQL (or null if synthetic only)
+    //  - synthetic: { columns:[], rows:[] } for SHOW-like commands we fake
+    function translateSnowflake(input){
+      let sql = input.trim().replace(/;+\s*$/,''); // strip trailing semicolons only for parsing
+      const upper = sql.toUpperCase();
+
+      // USE DATABASE/SCHEMA
+      let m = upper.match(/^USE\s+DATABASE\s+([A-Z0-9_"]+)$/i);
+      if (m){
+        currentDB = stripQuotes(m[1]).toUpperCase();
+        refreshContextChip();
+        return { synthetic: { columns: ['status'], rows: [[`Database changed to ${currentDB}`]] }, sql: null };
+      }
+      m = upper.match(/^USE\s+SCHEMA\s+([A-Z0-9_".]+)$/i);
+      if (m){
+        currentSchema = stripQuotes(m[1].split('.').pop()).toUpperCase();
+        refreshContextChip();
+        return { synthetic: { columns: ['status'], rows: [[`Schema changed to ${currentSchema}`]] }, sql: null };
+      }
+
+      // DESCRIBE / DESC TABLE|VIEW <name>
+      m = upper.match(/^DESCRIBE\s+(TABLE|VIEW)\s+(.+)$/i) || upper.match(/^DESC\s+(TABLE|VIEW)\s+(.+)$/i);
+      if (m){
+        const name = stripQuotes(sql.split(/\s+/).slice(2).join(' ').replace(/^(TABLE|VIEW)\s+/i,'')).split(/\s+/)[0];
+        return { sql: `PRAGMA table_info(${name});` };
+      }
+
+      // SHOW TABLES [LIKE 'pattern']
+      m = upper.match(/^SHOW\s+TABLES(\s+LIKE\s+('.+'|".+"))?$/i);
+      if (m){
+        const like = m[1] ? sql.match(/LIKE\s+('.+'|".+")/i)[1] : null;
+        const pattern = like ? like.replace(/(^['"]|['"]$)/g,'') : '%';
+        return {
+          sql: `
+            SELECT name AS "name"
+            FROM sqlite_master
+            WHERE type='table' AND name NOT LIKE 'sqlite_%' AND name LIKE ${q(pattern)}
+            ORDER BY name
+          `
+        };
+      }
+
+      // SHOW VIEWS
+      if (/^SHOW\s+VIEWS\s*$/i.test(upper)){
+        return { sql: `SELECT name AS "name" FROM sqlite_master WHERE type='view' ORDER BY name;` };
+      }
+
+      // SHOW SCHEMAS / DATABASES (simulate)
+      if (/^SHOW\s+SCHEMAS\s*$/i.test(upper)){
+        return { synthetic: { columns:['name'], rows: [[currentSchema]] }, sql: null };
+      }
+      if (/^SHOW\s+DATABASES\s*$/i.test(upper)){
+        return { synthetic: { columns:['name'], rows: [[currentDB]] }, sql: null };
+      }
+
+      // SHOW COLUMNS [IN|FROM] <table>
+      m = upper.match(/^SHOW\s+COLUMNS\s+(IN|FROM)\s+(.+)$/i);
+      if (m){
+        const t = stripQuotes(sql.replace(/^SHOW\s+COLUMNS\s+(IN|FROM)\s+/i,'').trim());
+        return { sql: `PRAGMA table_info(${t});` };
+      }
+
+      // ILIKE -> case-insensitive LIKE
+      // Replace: <expr> ILIKE <pattern>  -> LOWER(<expr>) LIKE LOWER(<pattern>)
+      sql = sql.replace(/(\S+)\s+ILIKE\s+('(?:[^']|\\')*'|"(?:[^"]|\\" )*")/gi,
+        (_, lhs, rhs) => `LOWER(${lhs}) LIKE LOWER(${rhs})`);
+
+      // DATE_TRUNC('month', col) -> strftime('%Y-%m-01', col)
+      // DATE_TRUNC('day', col)   -> date(col)
+      sql = sql.replace(/DATE_TRUNC\(\s*'(\w+)'\s*,\s*([^)]+)\)/gi, (_, unit, expr) => {
+        unit = unit.toLowerCase();
+        expr = expr.trim();
+        if (unit === 'month') return `strftime('%Y-%m-01', ${expr})`;
+        if (unit === 'year')  return `strftime('%Y-01-01', ${expr})`;
+        if (unit === 'day')   return `date(${expr})`;
+        return `date(${expr})`; // fallback
+      });
+
+      // QUALIFY <cond>  -> wrap as outer WHERE when the inner uses row_number()/rank()/dense_rank()
+      // Simple rewrite: SELECT ... FROM (...) t QUALIFY rnk=1  -> SELECT * FROM (SELECT ..., DENSE_RANK()... as rnk FROM ...) WHERE rnk=1
+      // We only handle trivial cases:
+      if (/QUALIFY\s+/i.test(sql)){
+        const parts = sql.split(/QUALIFY/i);
+        const left = parts[0].trim().replace(/;$/,'');
+        const qual = parts[1].trim();
+        sql = `SELECT * FROM (${left}) WHERE ${qual}`;
+      }
+
+      // End with semicolon for SQL.js friendliness
+      return { sql: sql + ';' };
+    }
+
+    function stripQuotes(s){ return s.replace(/^["'`]|["'`]$/g,''); }
+    function q(s){ return `'${String(s).replace(/'/g,"''")}'`; }
+
     // RUN QUERY
     function runSQL(){
       const status = document.getElementById('status');
       const resultMeta = document.getElementById('result-meta');
       const resultsEl = document.getElementById('results');
-      const sql = getSQL().trim();
-      if (!sql) return;
+      const raw = getSQL();
+      if (!raw.trim()) return;
 
       try {
         const t0 = performance.now();
-        const res = db.exec(sql); // returns array of result sets
-        const t1 = performance.now();
+        const { sql, synthetic } = translateSnowflake(raw);
 
         resultsEl.innerHTML = '';
         let totalRows = 0;
         lastRows = []; lastColumns = [];
 
-        if (res.length === 0){
-          resultsEl.innerHTML = `<p class="text-gray-500">No results.</p>`;
-          resultMeta.textContent = `0 rows • ${Math.round(t1 - t0)} ms`;
-        } else {
-          res.forEach((table, i) => {
-            const section = document.createElement('div');
-            if (res.length > 1){
-              section.innerHTML = `<div class="mb-1 text-xs text-gray-500">Result set ${i+1}</div>`;
-            }
-            renderTable(section, table.columns, table.values);
-            resultsEl.appendChild(section);
-            totalRows += table.values.length;
-
-            // remember last result set for CSV actions
-            lastColumns = table.columns;
-            lastRows = table.values;
-          });
-          resultMeta.textContent = `${totalRows} row${totalRows===1?'':'s'} • ${Math.round(t1 - t0)} ms`;
+        if (synthetic){
+          renderTable(resultsEl, synthetic.columns, synthetic.rows);
+          totalRows = synthetic.rows.length;
+        } else if (sql){
+          const res = db.exec(sql);
+          if (res.length === 0){
+            resultsEl.innerHTML = `<p class="text-gray-500">No results.</p>`;
+          } else {
+            res.forEach((table, i) => {
+              const section = document.createElement('div');
+              if (res.length > 1){
+                section.innerHTML = `<div class="mb-1 text-xs text-gray-500">Result set ${i+1}</div>`;
+              }
+              renderTable(section, table.columns, table.values);
+              resultsEl.appendChild(section);
+              totalRows += table.values.length;
+              lastColumns = table.columns; lastRows = table.values;
+            });
+          }
         }
 
+        const t1 = performance.now();
+        resultMeta.textContent = `${totalRows} row${totalRows===1?'':'s'} • ${Math.round(t1 - t0)} ms`;
         status.textContent = 'Success';
         status.className = 'ml-auto text-sm text-emerald-600';
       } catch (err) {
@@ -447,10 +491,7 @@ ORDER BY total_spent DESC NULLS LAST;`
           (102,'Brand Campaign',20,'2024-03-12'),
           (103,'Cost Audit',30,'2023-10-01');
 
-        CREATE TABLE project_assignments (
-          project_id INTEGER,
-          employee_id INTEGER
-        );
+        CREATE TABLE project_assignments (project_id INTEGER, employee_id INTEGER);
         INSERT INTO project_assignments VALUES
           (101,1),(101,4),(101,6),
           (102,2),
@@ -459,23 +500,14 @@ ORDER BY total_spent DESC NULLS LAST;`
 
       // Customers / Orders (sales-style)
       db.run(`
-        CREATE TABLE customers (
-          id INTEGER PRIMARY KEY,
-          name TEXT,
-          city TEXT
-        );
+        CREATE TABLE customers (id INTEGER PRIMARY KEY, name TEXT, city TEXT);
         INSERT INTO customers (id, name, city) VALUES
           (201,'Nova Foods','Toronto'),
           (202,'Zen Merch','Vancouver'),
           (203,'Acme Retail','Montreal'),
           (204,'Polar Co','Calgary');
 
-        CREATE TABLE orders (
-          id INTEGER PRIMARY KEY,
-          customer_id INTEGER,
-          order_date TEXT,
-          amount REAL
-        );
+        CREATE TABLE orders (id INTEGER PRIMARY KEY, customer_id INTEGER, order_date TEXT, amount REAL);
         INSERT INTO orders (id, customer_id, order_date, amount) VALUES
           (1001,201,'2024-05-02',1200.50),
           (1002,202,'2024-05-13', 980.00),
@@ -493,38 +525,12 @@ ORDER BY total_spent DESC NULLS LAST;`
       const SQL = await initSqlJs({ locateFile: file => `https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.6.2/${file}` });
       await seedDB(SQL);
       updateSchema();
-      setSQL(`-- DB reset. Try a query!\nSELECT name, salary FROM employees ORDER BY salary DESC LIMIT 5;`);
+      setSQL(`-- DB reset. Try Snowflake-style commands.\nDESCRIBE TABLE employees;\nSHOW TABLES;`);
       document.getElementById('results').innerHTML = '';
       document.getElementById('result-meta').textContent = '—';
       document.getElementById('status').textContent = 'Ready';
       document.getElementById('status').className = 'ml-auto text-sm text-gray-500 dark:text-gray-400';
-    }
-
-    // CSV IMPORT
-    function importCSV(file, tableName){
-      if (!file || !tableName){ alert('Pick a CSV file and table name.'); return; }
-      Papa.parse(file, {
-        header: true,
-        skipEmptyLines: true,
-        complete: function(results){
-          const rows = results.data;
-          if (!rows.length){ alert('Empty CSV'); return; }
-
-          const columns = Object.keys(rows[0]);
-          const safeName = tableName.replace(/[^a-zA-Z0-9_]/g,'_');
-          const colDefs = columns.map(c => `${c.replace(/[^a-zA-Z0-9_]/g,'_')} TEXT`).join(', ');
-          db.run(`CREATE TABLE ${safeName} (${colDefs});`);
-
-          const placeholders = columns.map(_=> '?').join(',');
-          const stmt = db.prepare(`INSERT INTO ${safeName} VALUES (${placeholders})`);
-          rows.forEach(r => stmt.run(columns.map(c => r[c])));
-          stmt.free();
-
-          updateSchema();
-          setSQL(`SELECT * FROM ${safeName} LIMIT 20;`);
-          runSQL();
-        }
-      });
+      refreshContextChip();
     }
 
     // INIT
@@ -545,11 +551,20 @@ ORDER BY total_spent DESC NULLS LAST;`
       });
 
       // Examples
+      const EXAMPLES = {
+        'sf-describe': 'DESCRIBE TABLE employees;',
+        'sf-show-tables': 'SHOW TABLES;',
+        'sf-ilike': "SELECT * FROM customers WHERE name ILIKE '%co%';",
+        'sf-date-trunc': "SELECT DATE_TRUNC('month', order_date) AS month, ROUND(SUM(amount),2) AS revenue FROM orders GROUP BY 1 ORDER BY 1;",
+        'join-top': `WITH r AS (
+  SELECT e.*, d.name AS dept,
+         DENSE_RANK() OVER (PARTITION BY department_id ORDER BY salary DESC) AS rnk
+  FROM employees e JOIN departments d ON e.department_id = d.id
+)
+SELECT id,name,dept,salary FROM r WHERE rnk=1 ORDER BY dept,name;`
+      };
       document.querySelectorAll('[data-example]').forEach(btn=>{
-        btn.addEventListener('click', ()=>{
-          const k = btn.getAttribute('data-example');
-          setSQL(EXAMPLES[k] || '');
-        });
+        btn.addEventListener('click', ()=> setSQL(EXAMPLES[btn.getAttribute('data-example')] || ''));
       });
 
       // Saved queries
@@ -564,17 +579,32 @@ ORDER BY total_spent DESC NULLS LAST;`
         loadSaved();
       });
       document.getElementById('clear-saved').addEventListener('click', ()=>{
-        if (confirm('Clear all saved queries?')) {
-          localStorage.removeItem('saved_queries');
-          loadSaved();
-        }
+        if (confirm('Clear all saved queries?')) { localStorage.removeItem('saved_queries'); loadSaved(); }
       });
 
       // CSV import
       document.getElementById('import-csv').addEventListener('click', ()=>{
         const f = document.getElementById('csv-file').files[0];
         const t = document.getElementById('csv-table-name').value.trim();
-        importCSV(f, t);
+        if (!f || !t){ alert('Pick a CSV file and table name.'); return; }
+        Papa.parse(f, {
+          header: true, skipEmptyLines: true,
+          complete: (results)=>{
+            const rows = results.data;
+            if (!rows.length){ alert('Empty CSV'); return; }
+            const columns = Object.keys(rows[0]);
+            const safeName = t.replace(/[^a-zA-Z0-9_]/g,'_');
+            const colDefs = columns.map(c => `${c.replace(/[^a-zA-Z0-9_]/g,'_')} TEXT`).join(', ');
+            db.run(`CREATE TABLE ${safeName} (${colDefs});`);
+            const placeholders = columns.map(_=> '?').join(',');
+            const stmt = db.prepare(`INSERT INTO ${safeName} VALUES (${placeholders})`);
+            rows.forEach(r => stmt.run(columns.map(c => r[c])));
+            stmt.free();
+            updateSchema();
+            setSQL(`SELECT * FROM ${safeName} LIMIT 20;`);
+            runSQL();
+          }
+        });
       });
     })();
   </script>
