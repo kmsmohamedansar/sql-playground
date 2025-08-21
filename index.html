@@ -3,9 +3,9 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Mohamed’s SQL Playground — Snowflake Style</title>
-  <meta name="description" content="Practice Snowflake-flavored SQL in your browser. SQLite (sql.js) with a translation layer: DESCRIBE, SHOW, ILIKE, DATE_TRUNC, and more." />
-  <meta name="theme-color" content="#0f172a" />
+  <title>Mohamed’s SQL Playground — Snowflake Style (Enhanced)</title>
+  <meta name="description" content="Practice Snowflake-flavored SQL in your browser. SQLite (sql.js) with a translation layer: DESCRIBE, SHOW, ILIKE, DATE_TRUNC, QUALIFY, and more." />
+  <meta name="theme-color" content="#0ea5e9" />
 
   <!-- Tailwind -->
   <script src="https://cdn.tailwindcss.com"></script>
@@ -13,7 +13,25 @@
     tailwind.config = {
       darkMode: 'class',
       theme: {
-        extend: { boxShadow: { glow: '0 0 40px rgba(99,102,241,.35)' } }
+        extend: {
+          boxShadow: {
+            glow: '0 0 0 2px rgba(14,165,233,.25), 0 10px 30px rgba(2,132,199,.25)'
+          },
+          colors: {
+            snow: {
+              50: '#ecfeff',
+              100: '#cffafe',
+              200: '#a5f3fc',
+              300: '#67e8f9',
+              400: '#22d3ee',
+              500: '#06b6d4',
+              600: '#0891b2',
+              700: '#0e7490',
+              800: '#155e75',
+              900: '#164e63'
+            }
+          }
+        }
       }
     }
   </script>
@@ -28,9 +46,15 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
 
   <style>
+    :root { --header-blur: saturate(120%) blur(6px); }
     body { font-family: 'Inter', system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; }
     textarea, code, pre, kbd { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace; }
     html { color-scheme: light; } html.dark { color-scheme: dark; }
+    /* Results grid tweaks */
+    .grid-table thead th { position: sticky; top: 0; }
+    .grid-table tbody tr:nth-child(odd) td { background: rgba(2,132,199,.04); }
+    /* Resizer */
+    #resizer { width: 6px; cursor: col-resize; }
   </style>
 
   <!-- Initial theme (avoid FOUC) -->
@@ -45,39 +69,40 @@
     })();
   </script>
 </head>
-<body class="bg-gray-50 text-gray-900 dark:bg-gray-900 dark:text-gray-100 min-h-screen flex flex-col">
-  <!-- Navbar -->
-  <nav class="sticky top-0 z-50 bg-white/80 dark:bg-gray-800/70 backdrop-blur shadow">
+<body class="bg-sky-50/40 text-gray-900 dark:bg-gray-900 dark:text-gray-100 min-h-screen flex flex-col">
+  <!-- Topbar (Snowflake-ish) -->
+  <nav class="sticky top-0 z-50 backdrop-blur bg-white/70 dark:bg-gray-900/60 shadow">
     <div class="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
       <div class="flex items-center gap-3">
-        <span class="text-2xl">🧠</span>
+        <div class="h-8 w-8 flex items-center justify-center rounded bg-sky-500 text-white shadow-glow">❄️</div>
         <a href="#" class="font-extrabold text-xl md:text-2xl">Mohamed’s SQL Playground</a>
-        <span class="hidden md:inline text-sm text-gray-500 dark:text-gray-400 ml-2">Snowflake-style commands</span>
+        <span class="hidden md:inline text-sm text-sky-700/80 dark:text-sky-200/80 ml-2">Snowflake-style worksheet</span>
       </div>
       <div class="flex items-center gap-2">
-        <span id="context-chip" class="px-2 py-1 text-xs rounded bg-indigo-100 text-indigo-800 dark:bg-indigo-900/40 dark:text-indigo-200">DB: MAIN • SCHEMA: PUBLIC</span>
-        <button id="theme-toggle" class="px-3 py-1.5 text-sm rounded-lg bg-gray-200 dark:bg-gray-700">🌗 Theme</button>
-        <a href="https://github.com/kmsmohamedansar/sql-playground" target="_blank" class="px-3 py-1.5 text-sm rounded-lg bg-indigo-600 text-white hover:bg-indigo-700">GitHub</a>
+        <span id="context-chip" class="px-2 py-1 text-xs rounded border border-sky-300 text-sky-800 bg-sky-100 dark:bg-sky-900/30 dark:text-sky-100 dark:border-sky-800">DB: MAIN • SCHEMA: PUBLIC</span>
+        <button id="theme-toggle" class="px-3 py-1.5 text-sm rounded-lg bg-sky-100 text-sky-800 hover:bg-sky-200 dark:bg-gray-700 dark:text-gray-100">🌗 Theme</button>
+        <a href="https://github.com/kmsmohamedansar/sql-playground" target="_blank" class="px-3 py-1.5 text-sm rounded-lg bg-sky-600 text-white hover:bg-sky-700 shadow-glow">GitHub</a>
       </div>
     </div>
   </nav>
 
   <!-- Layout -->
-  <main class="max-w-7xl mx-auto w-full px-4 py-5 grid gap-5 lg:grid-cols-[280px_minmax(0,1fr)]">
+  <main class="max-w-7xl mx-auto w-full px-4 py-5 grid gap-0 lg:grid-cols-[300px_6px_minmax(0,1fr)]">
     <!-- Sidebar -->
-    <aside class="bg-white dark:bg-gray-800 rounded-xl shadow p-4 h-fit">
-      <h2 class="font-semibold text-lg mb-2">📚 Schema</h2>
+    <aside id="sidebar" class="bg-white dark:bg-gray-800 rounded-l-xl rounded-r-none shadow p-4 h-fit">
+      <h2 class="font-semibold text-lg mb-2">📚 Catalog</h2>
+      <div class="text-xs text-gray-500 dark:text-gray-400 mb-1">Tables & Views</div>
       <div id="schema" class="space-y-3 text-sm"></div>
 
       <hr class="my-4 border-gray-200 dark:border-gray-700">
 
       <h2 class="font-semibold text-lg mb-2">🧩 Samples</h2>
       <div class="space-y-2 text-sm">
-        <button class="w-full text-left px-3 py-2 rounded bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600" data-example="sf-describe">DESCRIBE TABLE employees;</button>
-        <button class="w-full text-left px-3 py-2 rounded bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600" data-example="sf-show-tables">SHOW TABLES;</button>
-        <button class="w-full text-left px-3 py-2 rounded bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600" data-example="sf-ilike">SELECT * FROM customers WHERE name ILIKE '%co%';</button>
-        <button class="w-full text-left px-3 py-2 rounded bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600" data-example="sf-date-trunc">SELECT DATE_TRUNC('month', order_date) AS month, ROUND(SUM(amount),2) AS revenue FROM orders GROUP BY 1 ORDER BY 1;</button>
-        <button class="w-full text-left px-3 py-2 rounded bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600" data-example="join-top">-- Top earners per dept (window)\nWITH r AS (\n  SELECT e.*, d.name AS dept,\n         DENSE_RANK() OVER (PARTITION BY department_id ORDER BY salary DESC) AS rnk\n  FROM employees e JOIN departments d ON e.department_id = d.id\n)\nSELECT id,name,dept,salary FROM r WHERE rnk=1 ORDER BY dept,name;</button>
+        <button class="w-full text-left px-3 py-2 rounded bg-sky-50 dark:bg-gray-700 hover:bg-sky-100 dark:hover:bg-gray-600" data-example="sf-describe">DESCRIBE TABLE employees;</button>
+        <button class="w-full text-left px-3 py-2 rounded bg-sky-50 dark:bg-gray-700 hover:bg-sky-100 dark:hover:bg-gray-600" data-example="sf-show-tables">SHOW TABLES;</button>
+        <button class="w-full text-left px-3 py-2 rounded bg-sky-50 dark:bg-gray-700 hover:bg-sky-100 dark:hover:bg-gray-600" data-example="sf-ilike">SELECT * FROM customers WHERE name ILIKE '%co%';</button>
+        <button class="w-full text-left px-3 py-2 rounded bg-sky-50 dark:bg-gray-700 hover:bg-sky-100 dark:hover:bg-gray-600" data-example="sf-date-trunc">SELECT DATE_TRUNC('month', order_date) AS month, ROUND(SUM(amount),2) AS revenue FROM orders GROUP BY 1 ORDER BY 1;</button>
+        <button class="w-full text-left px-3 py-2 rounded bg-sky-50 dark:bg-gray-700 hover:bg-sky-100 dark:hover:bg-gray-600" data-example="join-top">-- Top earners per dept (window)\nWITH r AS (\n  SELECT e.*, d.name AS dept,\n         DENSE_RANK() OVER (PARTITION BY department_id ORDER BY salary DESC) AS rnk\n  FROM employees e JOIN departments d ON e.department_id = d.id\n)\nSELECT id,name,dept,salary FROM r WHERE rnk=1 ORDER BY dept,name;</button>
       </div>
 
       <hr class="my-4 border-gray-200 dark:border-gray-700">
@@ -103,32 +128,39 @@
       <button id="reset-db" class="w-full px-3 py-2 rounded bg-rose-600 text-white hover:bg-rose-700 text-sm">Reset Database</button>
     </aside>
 
+    <!-- Resizer -->
+    <div id="resizer" class="bg-sky-200 dark:bg-gray-700"></div>
+
     <!-- Main Work Area -->
-    <section class="space-y-5">
+    <section class="space-y-5 rounded-r-xl shadow bg-white dark:bg-gray-800 p-4">
       <!-- Editor Card -->
-      <div class="bg-white dark:bg-gray-800 rounded-xl shadow p-4">
+      <div class="rounded-xl border border-sky-200/50 dark:border-gray-700 p-4 bg-gradient-to-b from-white to-sky-50/40 dark:from-gray-800 dark:to-gray-800">
         <div class="flex items-center justify-between flex-wrap gap-2 mb-2">
-          <h2 class="font-semibold text-lg">🧪 Query Editor (Snowflake style accepted)</h2>
-          <div class="text-xs text-gray-500 dark:text-gray-400">Tip: <kbd class="px-1.5 py-0.5 bg-gray-200 dark:bg-gray-700 rounded">Ctrl/Cmd + Enter</kbd> to run</div>
+          <h2 class="font-semibold text-lg flex items-center gap-2">🧪 Worksheet <span class="text-xs px-2 py-0.5 rounded bg-sky-100 text-sky-800 dark:bg-sky-900/40 dark:text-sky-100">Snowflake style accepted</span></h2>
+          <div class="text-xs text-gray-500 dark:text-gray-400">Tip: <kbd class="px-1.5 py-0.5 bg-gray-200 dark:bg-gray-700 rounded">Ctrl/Cmd + Enter</kbd> to run • <kbd class="px-1.5 py-0.5 bg-gray-200 dark:bg-gray-700 rounded">Ctrl/Cmd + S</kbd> to save</div>
         </div>
-        <textarea id="sql-input" rows="8"
-          class="w-full p-3 rounded border bg-gray-50 dark:bg-gray-900 dark:border-gray-700"
+        <textarea id="sql-input" rows="9"
+          class="w-full p-3 rounded border bg-white dark:bg-gray-900 dark:border-gray-700 outline-none focus:ring-2 focus:ring-sky-300"
         >-- Try Snowflake style:
 DESCRIBE TABLE employees;
 SHOW TABLES;
 SELECT * FROM customers WHERE name ILIKE '%co%';
-SELECT DATE_TRUNC('month', order_date) AS month, SUM(amount) FROM orders GROUP BY 1;</textarea>
+SELECT DATE_TRUNC('month', order_date) AS month, SUM(amount) FROM orders GROUP BY 1;
+</textarea>
 
         <div class="mt-3 flex items-center gap-2 flex-wrap">
-          <button id="run" class="px-4 py-2 rounded bg-indigo-600 text-white hover:bg-indigo-700 shadow">▶ Run (Ctrl/Cmd+Enter)</button>
+          <button id="run" class="px-4 py-2 rounded bg-sky-600 text-white hover:bg-sky-700 shadow-glow">▶ Run (Ctrl/Cmd+Enter)</button>
           <button id="format" class="px-3 py-2 rounded bg-gray-200 dark:bg-gray-700">Format</button>
           <button id="clear" class="px-3 py-2 rounded bg-gray-200 dark:bg-gray-700">Clear</button>
-          <span id="status" class="ml-auto text-sm text-gray-500 dark:text-gray-400">Ready</span>
+          <div class="ml-auto flex items-center gap-2 text-xs">
+            <span id="status-dot" class="inline-block h-2 w-2 rounded-full bg-gray-400"></span>
+            <span id="status" class="text-gray-500 dark:text-gray-400">Ready</span>
+          </div>
         </div>
       </div>
 
       <!-- Results Card -->
-      <div class="bg-white dark:bg-gray-800 rounded-xl shadow p-4">
+      <div class="rounded-xl border border-sky-200/50 dark:border-gray-700 p-4 bg-white dark:bg-gray-800">
         <div class="flex items-center justify-between mb-2">
           <h2 class="font-semibold text-lg">📊 Results</h2>
           <div class="flex items-center gap-2">
@@ -141,7 +173,7 @@ SELECT DATE_TRUNC('month', order_date) AS month, SUM(amount) FROM orders GROUP B
       </div>
 
       <!-- Practice Tasks -->
-      <div class="bg-white dark:bg-gray-800 rounded-xl shadow p-4">
+      <div class="rounded-xl border border-sky-200/50 dark:border-gray-700 p-4 bg-white dark:bg-gray-800">
         <h2 class="font-semibold text-lg mb-2">🧠 Practice Tasks (Data Engineering)</h2>
         <ul class="list-disc pl-6 text-sm space-y-1 text-gray-700 dark:text-gray-300">
           <li>Return employee name, department name, and salary (JOIN employees ↔ departments).</li>
@@ -158,6 +190,9 @@ SELECT DATE_TRUNC('month', order_date) AS month, SUM(amount) FROM orders GROUP B
     Built by Mohamed • Snowflake-style on SQLite • <a href="https://github.com/kmsmohamedansar/sql-playground" target="_blank" class="underline">Source</a>
   </footer>
 
+  <!-- Toast -->
+  <div id="toast" class="hidden fixed bottom-4 right-4 px-4 py-2 rounded bg-sky-600 text-white shadow-glow text-sm">Saved!</div>
+
   <script>
     // THEME
     (function(){
@@ -165,6 +200,21 @@ SELECT DATE_TRUNC('month', order_date) AS month, SUM(amount) FROM orders GROUP B
       const root = document.documentElement;
       function setTheme(t){ root.classList.toggle('dark', t === 'dark'); try{ localStorage.setItem('theme', t); }catch(_){} }
       btn?.addEventListener('click', ()=> setTheme(root.classList.contains('dark') ? 'light' : 'dark'));
+    })();
+
+    // RESIZER (sidebar)
+    (function(){
+      const res = document.getElementById('resizer');
+      const sidebar = document.getElementById('sidebar');
+      let dragging = false;
+      res.addEventListener('mousedown', (e)=>{ dragging = true; document.body.style.userSelect = 'none'; });
+      window.addEventListener('mousemove', (e)=>{
+        if(!dragging) return;
+        const min = 220, max = 520;
+        let w = Math.min(max, Math.max(min, e.clientX - document.querySelector('main').getBoundingClientRect().left));
+        sidebar.style.width = w + 'px';
+      });
+      window.addEventListener('mouseup', ()=>{ dragging = false; document.body.style.userSelect = ''; });
     })();
 
     // GLOBALS
@@ -203,9 +253,9 @@ SELECT DATE_TRUNC('month', order_date) AS month, SUM(amount) FROM orders GROUP B
     // RENDER TABLE
     function renderTable(container, columns, rows){
       const tbl = document.createElement('table');
-      tbl.className = 'table-auto border-collapse border border-gray-300 dark:border-gray-700 w-full';
+      tbl.className = 'grid-table table-auto border-collapse border border-sky-200 dark:border-gray-700 w-full rounded overflow-hidden';
       const thead = document.createElement('thead');
-      thead.innerHTML = '<tr>' + columns.map(c => `<th class="border px-2 py-1 bg-gray-100 dark:bg-gray-700 text-left">${c}</th>`).join('') + '</tr>';
+      thead.innerHTML = '<tr>' + columns.map(c => `<th class="border px-2 py-1 bg-sky-100/70 dark:bg-gray-700 text-left">${c}</th>`).join('') + '</tr>';
       const tbody = document.createElement('tbody');
       rows.forEach(r => {
         const tr = document.createElement('tr');
@@ -269,15 +319,15 @@ SELECT DATE_TRUNC('month', order_date) AS month, SUM(amount) FROM orders GROUP B
       const upper = sql.toUpperCase();
 
       // USE DATABASE/SCHEMA
-      let m = upper.match(/^USE\s+DATABASE\s+([A-Z0-9_"]+)$/i);
+      let m = upper.match(/^USE\s+DATABASE\s+([A-Z0-9_"`]+)$/i);
       if (m){
         currentDB = stripQuotes(m[1]).toUpperCase();
         refreshContextChip();
         return { synthetic: { columns: ['status'], rows: [[`Database changed to ${currentDB}`]] }, sql: null };
       }
-      m = upper.match(/^USE\s+SCHEMA\s+([A-Z0-9_".]+)$/i);
+      m = upper.match(/^USE\s+SCHEMA\s+([A-Z0-9_"`.]+)$/i);
       if (m){
-        currentSchema = stripQuotes(m[1].split('.').pop()).toUpperCase();
+        currentSchema = stripQuotes(sql.split(/\s+/).pop()).replace(/.*\./,'').toUpperCase();
         refreshContextChip();
         return { synthetic: { columns: ['status'], rows: [[`Schema changed to ${currentSchema}`]] }, sql: null };
       }
@@ -295,12 +345,7 @@ SELECT DATE_TRUNC('month', order_date) AS month, SUM(amount) FROM orders GROUP B
         const like = m[1] ? sql.match(/LIKE\s+('.+'|".+")/i)[1] : null;
         const pattern = like ? like.replace(/(^['"]|['"]$)/g,'') : '%';
         return {
-          sql: `
-            SELECT name AS "name"
-            FROM sqlite_master
-            WHERE type='table' AND name NOT LIKE 'sqlite_%' AND name LIKE ${q(pattern)}
-            ORDER BY name
-          `
+          sql: `\n            SELECT name AS "name"\n            FROM sqlite_master\n            WHERE type='table' AND name NOT LIKE 'sqlite_%' AND name LIKE ${q(pattern)}\n            ORDER BY name\n          `
         };
       }
 
@@ -325,9 +370,11 @@ SELECT DATE_TRUNC('month', order_date) AS month, SUM(amount) FROM orders GROUP B
       }
 
       // ILIKE -> case-insensitive LIKE
-      // Replace: <expr> ILIKE <pattern>  -> LOWER(<expr>) LIKE LOWER(<pattern>)
       sql = sql.replace(/(\S+)\s+ILIKE\s+('(?:[^']|\\')*'|"(?:[^"]|\\" )*")/gi,
         (_, lhs, rhs) => `LOWER(${lhs}) LIKE LOWER(${rhs})`);
+
+      // SAFE_DIVIDE(x,y) -> (x) / NULLIF(y,0)
+      sql = sql.replace(/SAFE_DIVIDE\s*\(([^,]+),\s*([^\)]+)\)/gi, '($1) / NULLIF($2, 0)');
 
       // DATE_TRUNC('month', col) -> strftime('%Y-%m-01', col)
       // DATE_TRUNC('day', col)   -> date(col)
@@ -337,12 +384,10 @@ SELECT DATE_TRUNC('month', order_date) AS month, SUM(amount) FROM orders GROUP B
         if (unit === 'month') return `strftime('%Y-%m-01', ${expr})`;
         if (unit === 'year')  return `strftime('%Y-01-01', ${expr})`;
         if (unit === 'day')   return `date(${expr})`;
-        return `date(${expr})`; // fallback
+        return `date(${expr})`;
       });
 
-      // QUALIFY <cond>  -> wrap as outer WHERE when the inner uses row_number()/rank()/dense_rank()
-      // Simple rewrite: SELECT ... FROM (...) t QUALIFY rnk=1  -> SELECT * FROM (SELECT ..., DENSE_RANK()... as rnk FROM ...) WHERE rnk=1
-      // We only handle trivial cases:
+      // QUALIFY -> wrap as outer WHERE (simple cases)
       if (/QUALIFY\s+/i.test(sql)){
         const parts = sql.split(/QUALIFY/i);
         const left = parts[0].trim().replace(/;$/,'');
@@ -360,12 +405,15 @@ SELECT DATE_TRUNC('month', order_date) AS month, SUM(amount) FROM orders GROUP B
     // RUN QUERY
     function runSQL(){
       const status = document.getElementById('status');
+      const dot = document.getElementById('status-dot');
       const resultMeta = document.getElementById('result-meta');
       const resultsEl = document.getElementById('results');
       const raw = getSQL();
       if (!raw.trim()) return;
 
       try {
+        dot.style.backgroundColor = '#f59e0b'; // amber
+        status.textContent = 'Running...';
         const t0 = performance.now();
         const { sql, synthetic } = translateSnowflake(raw);
 
@@ -397,12 +445,13 @@ SELECT DATE_TRUNC('month', order_date) AS month, SUM(amount) FROM orders GROUP B
         const t1 = performance.now();
         resultMeta.textContent = `${totalRows} row${totalRows===1?'':'s'} • ${Math.round(t1 - t0)} ms`;
         status.textContent = 'Success';
-        status.className = 'ml-auto text-sm text-emerald-600';
+        dot.style.backgroundColor = '#10b981'; // emerald
+        status.className = 'text-emerald-600';
       } catch (err) {
-        resultsEl.innerHTML = `<p class="text-rose-600">Error: ${err.message}</p>`;
+        resultsEl.innerHTML = `<p class=\"text-rose-600\">Error: ${err.message}</p>`;
         document.getElementById('result-meta').textContent = '—';
         status.textContent = 'Error';
-        status.className = 'ml-auto text-sm text-rose-600';
+        document.getElementById('status-dot').style.backgroundColor = '#ef4444';
       }
     }
 
@@ -419,7 +468,7 @@ SELECT DATE_TRUNC('month', order_date) AS month, SUM(amount) FROM orders GROUP B
         const row = document.createElement('div');
         row.className = 'flex items-center gap-2';
         row.innerHTML = `
-          <button class="flex-1 text-left px-3 py-2 rounded bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600">${item.name}</button>
+          <button class="flex-1 text-left px-3 py-2 rounded bg-sky-50 dark:bg-gray-700 hover:bg-sky-100 dark:hover:bg-gray-600">${item.name}</button>
           <button class="px-2 py-1 text-xs rounded bg-rose-600 text-white" data-del="${idx}">Del</button>
         `;
         row.querySelector('button').addEventListener('click', ()=> setSQL(item.sql));
@@ -433,15 +482,17 @@ SELECT DATE_TRUNC('month', order_date) AS month, SUM(amount) FROM orders GROUP B
       });
     }
 
+    function showToast(msg='Saved!'){
+      const t = document.getElementById('toast');
+      t.textContent = msg; t.classList.remove('hidden');
+      setTimeout(()=> t.classList.add('hidden'), 1200);
+    }
+
     // CSV COPY / DOWNLOAD
     function copyCSV(){
       if (!lastRows.length){ alert('No results to copy.'); return; }
       const csv = toCSV(lastColumns, lastRows);
-      navigator.clipboard.writeText(csv).then(()=> {
-        const old = document.getElementById('status').textContent;
-        document.getElementById('status').textContent = 'CSV copied';
-        setTimeout(()=> document.getElementById('status').textContent = old, 1200);
-      });
+      navigator.clipboard.writeText(csv).then(()=> showToast('CSV copied'));
     }
     function downloadCSV(){
       if (!lastRows.length){ alert('No results to download.'); return; }
@@ -525,11 +576,13 @@ SELECT DATE_TRUNC('month', order_date) AS month, SUM(amount) FROM orders GROUP B
       const SQL = await initSqlJs({ locateFile: file => `https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.6.2/${file}` });
       await seedDB(SQL);
       updateSchema();
-      setSQL(`-- DB reset. Try Snowflake-style commands.\nDESCRIBE TABLE employees;\nSHOW TABLES;`);
+      const last = localStorage.getItem('last_query');
+      setSQL(last || `-- DB reset. Try Snowflake-style commands.\nDESCRIBE TABLE employees;\nSHOW TABLES;`);
       document.getElementById('results').innerHTML = '';
       document.getElementById('result-meta').textContent = '—';
       document.getElementById('status').textContent = 'Ready';
-      document.getElementById('status').className = 'ml-auto text-sm text-gray-500 dark:text-gray-400';
+      document.getElementById('status').className = 'text-gray-500 dark:text-gray-400';
+      document.getElementById('status-dot').style.backgroundColor = '#9ca3af';
       refreshContextChip();
     }
 
@@ -538,7 +591,7 @@ SELECT DATE_TRUNC('month', order_date) AS month, SUM(amount) FROM orders GROUP B
       await resetDB();
 
       // Buttons
-      document.getElementById('run').addEventListener('click', runSQL);
+      document.getElementById('run').addEventListener('click', ()=>{ runSQL(); localStorage.setItem('last_query', getSQL()); });
       document.getElementById('format').addEventListener('click', ()=> setSQL(formatSQL(getSQL())));
       document.getElementById('clear').addEventListener('click', ()=> setSQL(''));
       document.getElementById('copy-csv').addEventListener('click', copyCSV);
@@ -547,7 +600,15 @@ SELECT DATE_TRUNC('month', order_date) AS month, SUM(amount) FROM orders GROUP B
 
       // Keyboard shortcut
       document.addEventListener('keydown', (e)=>{
-        if ((e.ctrlKey || e.metaKey) && e.key === 'Enter'){ e.preventDefault(); runSQL(); }
+        if ((e.ctrlKey || e.metaKey) && e.key === 'Enter'){ e.preventDefault(); runSQL(); localStorage.setItem('last_query', getSQL()); }
+        if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's'){ e.preventDefault();
+          const name = prompt('Save query as (name):');
+          if (!name) return; const sql = getSQL();
+          const arr = JSON.parse(localStorage.getItem('saved_queries') || '[]');
+          arr.push({ name, sql });
+          localStorage.setItem('saved_queries', JSON.stringify(arr));
+          loadSaved(); showToast();
+        }
       });
 
       // Examples
@@ -576,7 +637,7 @@ SELECT id,name,dept,salary FROM r WHERE rnk=1 ORDER BY dept,name;`
         const arr = JSON.parse(localStorage.getItem('saved_queries') || '[]');
         arr.push({ name, sql });
         localStorage.setItem('saved_queries', JSON.stringify(arr));
-        loadSaved();
+        loadSaved(); showToast();
       });
       document.getElementById('clear-saved').addEventListener('click', ()=>{
         if (confirm('Clear all saved queries?')) { localStorage.removeItem('saved_queries'); loadSaved(); }
