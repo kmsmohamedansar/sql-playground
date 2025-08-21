@@ -1,107 +1,582 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="scroll-smooth">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>SQL Practice Playground</title>
-  <meta name="description" content="Interactive SQL Practice Sandbox — Run queries in your browser">
+  <title>Mohamed’s SQL Playground</title>
+  <meta name="description" content="Practice SQL for data engineering interviews in your browser. SQLite (sql.js), schema explorer, saved queries, CSV import." />
   <meta name="theme-color" content="#0f172a" />
 
-  <!-- Tailwind CSS -->
+  <!-- Tailwind -->
   <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          boxShadow: { glow: '0 0 40px rgba(99,102,241,.35)' }
+        }
+      }
+    }
+  </script>
 
-  <!-- SQL.js (SQLite in WebAssembly) -->
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+
+  <!-- SQL.js (SQLite in WASM) -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.6.2/sql-wasm.js"></script>
+  <!-- Papa Parse (CSV import) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
 
   <style>
-    body { font-family: 'Inter', sans-serif; }
-    textarea { font-family: monospace; }
+    body { font-family: 'Inter', system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; }
+    textarea, code, pre, kbd { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace; }
+    html { color-scheme: light; } html.dark { color-scheme: dark; }
   </style>
-</head>
-<body class="bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100 min-h-screen flex flex-col">
 
-  <!-- NAVBAR -->
-  <nav class="bg-white/80 dark:bg-gray-800/70 backdrop-blur sticky top-0 shadow">
-    <div class="max-w-6xl mx-auto px-4 py-3 flex justify-between items-center">
-      <a href="#" class="font-bold text-xl">SQL Playground</a>
-      <a href="https://github.com/kmsmohamedansar/sql-playground" target="_blank" class="text-sm underline">GitHub</a>
+  <!-- Initial theme (avoid FOUC) -->
+  <script>
+    (function() {
+      try {
+        const ls = localStorage.getItem('theme');
+        const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+        const wantDark = ls ? (ls === 'dark') : prefersDark;
+        document.documentElement.classList.toggle('dark', wantDark);
+      } catch(_) {}
+    })();
+  </script>
+</head>
+<body class="bg-gray-50 text-gray-900 dark:bg-gray-900 dark:text-gray-100 min-h-screen flex flex-col">
+  <!-- Navbar -->
+  <nav class="sticky top-0 z-50 bg-white/80 dark:bg-gray-800/70 backdrop-blur shadow">
+    <div class="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <span class="text-2xl">🧠</span>
+        <a href="#" class="font-extrabold text-xl md:text-2xl">Mohamed’s SQL Playground</a>
+        <span class="hidden md:inline text-sm text-gray-500 dark:text-gray-400 ml-2">Practice SQL for DE interviews</span>
+      </div>
+      <div class="flex items-center gap-2">
+        <button id="theme-toggle" class="px-3 py-1.5 text-sm rounded-lg bg-gray-200 dark:bg-gray-700">
+          🌗 Theme
+        </button>
+        <a href="https://github.com/kmsmohamedansar/sql-playground" target="_blank" class="px-3 py-1.5 text-sm rounded-lg bg-indigo-600 text-white hover:bg-indigo-700">GitHub</a>
+      </div>
     </div>
   </nav>
 
-  <!-- HERO -->
-  <header class="text-center py-12">
-    <h1 class="text-4xl font-extrabold bg-gradient-to-r from-blue-500 via-purple-600 to-pink-500 bg-clip-text text-transparent">
-      Practice SQL in your Browser
-    </h1>
-    <p class="mt-3 text-gray-600 dark:text-gray-300">
-      Type a query, run it, and see results instantly (powered by SQLite in WebAssembly).
-    </p>
-  </header>
+  <!-- Layout -->
+  <main class="max-w-7xl mx-auto w-full px-4 py-5 grid gap-5 lg:grid-cols-[280px_minmax(0,1fr)]">
+    <!-- Sidebar -->
+    <aside class="bg-white dark:bg-gray-800 rounded-xl shadow p-4 h-fit">
+      <h2 class="font-semibold text-lg mb-2">📚 Schema</h2>
+      <div id="schema" class="space-y-3 text-sm">
+        <!-- Tables populated by JS -->
+      </div>
 
-  <!-- MAIN SQL APP -->
-  <main class="flex-1 max-w-5xl mx-auto px-4 pb-16">
-    <div class="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6">
-      <label for="sql-input" class="block text-sm font-medium mb-2">💻 Write SQL Query</label>
-      <textarea id="sql-input"
-        class="w-full p-3 border rounded-lg bg-gray-50 dark:bg-gray-900 dark:border-gray-700"
-        rows="5">SELECT * FROM employees;</textarea>
-      
-      <button onclick="runSQL()"
-        class="mt-4 px-5 py-2 bg-blue-600 text-white rounded-lg shadow hover:bg-blue-700">
-        Run Query ▶
-      </button>
-      
-      <div id="results" class="mt-6 overflow-x-auto text-sm"></div>
-    </div>
+      <hr class="my-4 border-gray-200 dark:border-gray-700">
+
+      <h2 class="font-semibold text-lg mb-2">🧩 Samples</h2>
+      <div class="space-y-2 text-sm">
+        <button class="w-full text-left px-3 py-2 rounded bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600"
+                data-example="employees-by-dept">Employees by Dept (JOIN)</button>
+        <button class="w-full text-left px-3 py-2 rounded bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600"
+                data-example="top-earners">Top Earners per Dept (Window)</button>
+        <button class="w-full text-left px-3 py-2 rounded bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600"
+                data-example="monthly-sales">Monthly Sales (CTE + GROUP)</button>
+        <button class="w-full text-left px-3 py-2 rounded bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600"
+                data-example="customer-ltv">Customer LTV (Aggregates)</button>
+      </div>
+
+      <hr class="my-4 border-gray-200 dark:border-gray-700">
+
+      <h2 class="font-semibold text-lg mb-2">💾 Saved Queries</h2>
+      <div id="saved-list" class="space-y-2 text-sm"></div>
+      <div class="mt-2 flex gap-2">
+        <button id="save-query" class="flex-1 px-3 py-2 rounded bg-emerald-600 text-white hover:bg-emerald-700">Save</button>
+        <button id="clear-saved" class="px-3 py-2 rounded bg-gray-200 dark:bg-gray-700">Clear</button>
+      </div>
+
+      <hr class="my-4 border-gray-200 dark:border-gray-700">
+
+      <h2 class="font-semibold text-lg mb-2">📥 Import CSV</h2>
+      <label class="block text-xs mb-1">Create table from CSV</label>
+      <input id="csv-file" type="file" accept=".csv" class="block w-full text-xs mb-2">
+      <input id="csv-table-name" type="text" placeholder="table_name"
+             class="w-full text-xs px-2 py-1 rounded bg-gray-50 dark:bg-gray-900 border dark:border-gray-700 mb-2">
+      <button id="import-csv" class="w-full px-3 py-2 rounded bg-sky-600 text-white hover:bg-sky-700 text-sm">Import</button>
+
+      <hr class="my-4 border-gray-200 dark:border-gray-700">
+
+      <button id="reset-db" class="w-full px-3 py-2 rounded bg-rose-600 text-white hover:bg-rose-700 text-sm">Reset Database</button>
+    </aside>
+
+    <!-- Main Work Area -->
+    <section class="space-y-5">
+      <!-- Editor Card -->
+      <div class="bg-white dark:bg-gray-800 rounded-xl shadow p-4">
+        <div class="flex items-center justify-between flex-wrap gap-2 mb-2">
+          <h2 class="font-semibold text-lg">🧪 Query Editor</h2>
+          <div class="text-xs text-gray-500 dark:text-gray-400">Tip: <kbd class="px-1.5 py-0.5 bg-gray-200 dark:bg-gray-700 rounded">Ctrl/Cmd + Enter</kbd> to run</div>
+        </div>
+        <textarea id="sql-input" rows="8"
+          class="w-full p-3 rounded border bg-gray-50 dark:bg-gray-900 dark:border-gray-700"
+        >-- Try some queries!
+SELECT * FROM employees LIMIT 5;</textarea>
+
+        <div class="mt-3 flex items-center gap-2 flex-wrap">
+          <button id="run" class="px-4 py-2 rounded bg-indigo-600 text-white hover:bg-indigo-700 shadow">▶ Run (Ctrl/Cmd+Enter)</button>
+          <button id="format" class="px-3 py-2 rounded bg-gray-200 dark:bg-gray-700">Format</button>
+          <button id="clear" class="px-3 py-2 rounded bg-gray-200 dark:bg-gray-700">Clear</button>
+          <span id="status" class="ml-auto text-sm text-gray-500 dark:text-gray-400">Ready</span>
+        </div>
+      </div>
+
+      <!-- Results Card -->
+      <div class="bg-white dark:bg-gray-800 rounded-xl shadow p-4">
+        <div class="flex items-center justify-between mb-2">
+          <h2 class="font-semibold text-lg">📊 Results</h2>
+          <div class="flex items-center gap-2">
+            <button id="copy-csv" class="px-3 py-1.5 text-sm rounded bg-gray-200 dark:bg-gray-700">Copy CSV</button>
+            <button id="download-csv" class="px-3 py-1.5 text-sm rounded bg-gray-200 dark:bg-gray-700">Download CSV</button>
+          </div>
+        </div>
+        <div id="result-meta" class="text-xs text-gray-500 dark:text-gray-400 mb-2">0 rows • 0 ms</div>
+        <div id="results" class="overflow-x-auto text-sm"></div>
+      </div>
+
+      <!-- Practice Tasks -->
+      <div class="bg-white dark:bg-gray-800 rounded-xl shadow p-4">
+        <h2 class="font-semibold text-lg mb-2">🧠 Practice Tasks (Data Engineering)</h2>
+        <ul class="list-disc pl-6 text-sm space-y-1 text-gray-700 dark:text-gray-300">
+          <li>Return employee name, department name, and salary (JOIN employees ↔ departments).</li>
+          <li>For each department, show the top earner (window function: RANK/DENSE_RANK).</li>
+          <li>Monthly revenue from <code>orders</code> (CTE + DATE functions), sorted descending.</li>
+          <li>Customer lifetime value: total amount and first order date per customer.</li>
+          <li>Find projects with no assigned employees (LEFT JOIN anti-join).</li>
+        </ul>
+      </div>
+    </section>
   </main>
 
-  <!-- FOOTER -->
   <footer class="text-center py-6 text-gray-500 dark:text-gray-400 text-sm">
-    Built with ❤️ using sql.js + Tailwind · Hosted on GitHub Pages
+    Built by Mohamed • sql.js + Tailwind • <a href="https://github.com/kmsmohamedansar/sql-playground" target="_blank" class="underline">Source</a>
   </footer>
 
-  <!-- SQL.js logic -->
   <script>
-    let db;
-    initSqlJs({ locateFile: file => `https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.6.2/${file}` })
-      .then(SQL => {
-        db = new SQL.Database();
-        // Seed demo data
-        db.run(`
-          CREATE TABLE employees (id INTEGER, name TEXT, department TEXT, salary REAL);
-          INSERT INTO employees VALUES (1, 'Alice', 'Engineering', 85000);
-          INSERT INTO employees VALUES (2, 'Bob', 'Marketing', 65000);
-          INSERT INTO employees VALUES (3, 'Charlie', 'Finance', 72000);
-          INSERT INTO employees VALUES (4, 'Diana', 'Engineering', 90000);
-        `);
+    // THEME
+    (function(){
+      const btn = document.getElementById('theme-toggle');
+      const root = document.documentElement;
+      function setTheme(t){ root.classList.toggle('dark', t === 'dark'); try{ localStorage.setItem('theme', t); }catch(_){} }
+      btn?.addEventListener('click', ()=>{
+        setTheme(root.classList.contains('dark') ? 'light' : 'dark');
+      });
+    })();
+
+    // GLOBALS
+    let db;                 // SQL.js Database instance
+    let lastRows = [];      // Last result rows for CSV copy/download
+    let lastColumns = [];   // Last result columns
+
+    // EXAMPLE QUERIES
+    const EXAMPLES = {
+      "employees-by-dept": `SELECT e.id, e.name, d.name AS department, e.salary
+FROM employees e
+JOIN departments d ON e.department_id = d.id
+ORDER BY d.name, e.salary DESC;`,
+      "top-earners": `WITH ranked AS (
+  SELECT e.*, d.name AS department,
+         DENSE_RANK() OVER (PARTITION BY department_id ORDER BY salary DESC) AS rnk
+  FROM employees e
+  JOIN departments d ON e.department_id = d.id
+)
+SELECT id, name, department, salary
+FROM ranked
+WHERE rnk = 1
+ORDER BY department, name;`,
+      "monthly-sales": `WITH normalized AS (
+  SELECT date(order_date) AS d, amount
+  FROM orders
+)
+SELECT strftime('%Y-%m', d) AS month, ROUND(SUM(amount), 2) AS revenue
+FROM normalized
+GROUP BY month
+ORDER BY month DESC;`,
+      "customer-ltv": `SELECT c.id, c.name,
+       ROUND(SUM(o.amount),2)  AS total_spent,
+       MIN(date(o.order_date)) AS first_order,
+       COUNT(o.id)             AS orders
+FROM customers c
+LEFT JOIN orders o ON o.customer_id = c.id
+GROUP BY c.id, c.name
+ORDER BY total_spent DESC NULLS LAST;`
+    };
+
+    // SIMPLE SQL "FORMATTER" (very light touch)
+    function formatSQL(sql){
+      return sql
+        .replace(/\s+/g,' ')
+        .replace(/\b(select|from|where|group by|order by|left join|join|inner join|outer join|with|on|limit|offset|having)\b/gi, s => s.toUpperCase())
+        .replace(/,\s*/g, ', ')
+        .replace(/\s*;\s*$/, ';')
+        .trim();
+    }
+
+    // RENDER TABLE UTILS
+    function toCSV(columns, rows){
+      const esc = v => {
+        if (v === null || v === undefined) return '';
+        const s = String(v);
+        return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+      };
+      return [columns.join(','), ...rows.map(r => r.map(esc).join(','))].join('\n');
+    }
+
+    function renderTable(container, columns, rows){
+      const tbl = document.createElement('table');
+      tbl.className = 'table-auto border-collapse border border-gray-300 dark:border-gray-700 w-full';
+
+      const thead = document.createElement('thead');
+      thead.innerHTML = '<tr>' + columns.map(c => `<th class="border px-2 py-1 bg-gray-100 dark:bg-gray-700 text-left">${c}</th>`).join('') + '</tr>';
+      const tbody = document.createElement('tbody');
+
+      rows.forEach(r => {
+        const tr = document.createElement('tr');
+        r.forEach(v => {
+          const td = document.createElement('td');
+          td.className = 'border px-2 py-1';
+          td.textContent = v;
+          tr.appendChild(td);
+        });
+        tbody.appendChild(tr);
       });
 
-    function runSQL() {
-      const sql = document.getElementById("sql-input").value;
-      let resultsHTML = "";
-      try {
-        const res = db.exec(sql);
-        if (res.length === 0) {
-          resultsHTML = "<p class='text-gray-500'>No results.</p>";
-        } else {
-          res.forEach(table => {
-            resultsHTML += "<table class='table-auto border-collapse border border-gray-400 mt-4 w-full'>";
-            resultsHTML += "<thead><tr>";
-            table.columns.forEach(col => resultsHTML += `<th class='border px-2 py-1 bg-gray-100 dark:bg-gray-700'>${col}</th>`);
-            resultsHTML += "</tr></thead><tbody>";
-            table.values.forEach(row => {
-              resultsHTML += "<tr>";
-              row.forEach(val => resultsHTML += `<td class='border px-2 py-1'>${val}</td>`);
-              resultsHTML += "</tr>";
-            });
-            resultsHTML += "</tbody></table>";
-          });
-        }
-      } catch (err) {
-        resultsHTML = `<p class='text-red-600'>Error: ${err.message}</p>`;
-      }
-      document.getElementById("results").innerHTML = resultsHTML;
+      tbl.appendChild(thead);
+      tbl.appendChild(tbody);
+      container.innerHTML = '';
+      container.appendChild(tbl);
     }
+
+    // SCHEMA EXPLORER
+    function updateSchema(){
+      const schemaEl = document.getElementById('schema');
+      if (!db) return;
+      const tables = db.exec(`SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name;`);
+      schemaEl.innerHTML = '';
+      if (!tables.length) { schemaEl.textContent = 'No tables'; return; }
+
+      tables[0].values.forEach(([tname]) => {
+        // columns
+        const cols = db.exec(`PRAGMA table_info(${tname});`)[0]?.values || [];
+        const count = db.exec(`SELECT COUNT(*) AS n FROM ${tname};`)[0]?.values?.[0]?.[0] ?? 0;
+
+        const wrap = document.createElement('div');
+        wrap.className = 'border border-gray-200 dark:border-gray-700 rounded-lg';
+
+        const header = document.createElement('div');
+        header.className = 'px-3 py-2 bg-gray-50 dark:bg-gray-900 flex items-center justify-between cursor-pointer rounded-t-lg';
+        header.innerHTML = `<div class="font-medium">${tname}</div><div class="text-xs text-gray-500">${count} rows</div>`;
+        wrap.appendChild(header);
+
+        const body = document.createElement('div');
+        body.className = 'px-3 py-2 hidden';
+        body.innerHTML = '<ul class="text-xs text-gray-600 dark:text-gray-300 space-y-1">' +
+          cols.map(c => `<li><code>${c[1]}</code> <span class="text-gray-400">(${c[2]})</span></li>`).join('') +
+          '</ul>' +
+          `<div class="mt-2 flex gap-2">
+             <button class="px-2 py-1 text-xs rounded bg-gray-200 dark:bg-gray-700" data-preview="${tname}">Preview</button>
+             <button class="px-2 py-1 text-xs rounded bg-gray-200 dark:bg-gray-700" data-insert="${tname}">Insert SELECT</button>
+           </div>`;
+        wrap.appendChild(body);
+
+        header.addEventListener('click', ()=> body.classList.toggle('hidden'));
+        schemaEl.appendChild(wrap);
+      });
+
+      // wire preview/insert
+      schemaEl.querySelectorAll('[data-preview]').forEach(btn=>{
+        btn.addEventListener('click', ()=>{
+          const t = btn.getAttribute('data-preview');
+          setSQL(`SELECT * FROM ${t} LIMIT 20;`);
+          runSQL();
+        });
+      });
+      schemaEl.querySelectorAll('[data-insert]').forEach(btn=>{
+        btn.addEventListener('click', ()=>{
+          const t = btn.getAttribute('data-insert');
+          insertSQL(`\nSELECT * FROM ${t} LIMIT 20;`);
+        });
+      });
+    }
+
+    // EDITOR HELPERS
+    function getSQL(){ return document.getElementById('sql-input').value; }
+    function setSQL(v){ document.getElementById('sql-input').value = v; }
+    function insertSQL(s){ const el = document.getElementById('sql-input'); el.value += s; el.focus(); }
+
+    // RUN QUERY
+    function runSQL(){
+      const status = document.getElementById('status');
+      const resultMeta = document.getElementById('result-meta');
+      const resultsEl = document.getElementById('results');
+      const sql = getSQL().trim();
+      if (!sql) return;
+
+      try {
+        const t0 = performance.now();
+        const res = db.exec(sql); // returns array of result sets
+        const t1 = performance.now();
+
+        resultsEl.innerHTML = '';
+        let totalRows = 0;
+        lastRows = []; lastColumns = [];
+
+        if (res.length === 0){
+          resultsEl.innerHTML = `<p class="text-gray-500">No results.</p>`;
+          resultMeta.textContent = `0 rows • ${Math.round(t1 - t0)} ms`;
+        } else {
+          res.forEach((table, i) => {
+            const section = document.createElement('div');
+            if (res.length > 1){
+              section.innerHTML = `<div class="mb-1 text-xs text-gray-500">Result set ${i+1}</div>`;
+            }
+            renderTable(section, table.columns, table.values);
+            resultsEl.appendChild(section);
+            totalRows += table.values.length;
+
+            // remember last result set for CSV actions
+            lastColumns = table.columns;
+            lastRows = table.values;
+          });
+          resultMeta.textContent = `${totalRows} row${totalRows===1?'':'s'} • ${Math.round(t1 - t0)} ms`;
+        }
+
+        status.textContent = 'Success';
+        status.className = 'ml-auto text-sm text-emerald-600';
+      } catch (err) {
+        resultsEl.innerHTML = `<p class="text-rose-600">Error: ${err.message}</p>`;
+        document.getElementById('result-meta').textContent = '—';
+        status.textContent = 'Error';
+        status.className = 'ml-auto text-sm text-rose-600';
+      }
+    }
+
+    // SAVE QUERIES (localStorage)
+    function loadSaved(){
+      const saved = JSON.parse(localStorage.getItem('saved_queries') || '[]');
+      const list = document.getElementById('saved-list');
+      list.innerHTML = '';
+      if (!saved.length){
+        list.innerHTML = '<div class="text-xs text-gray-500">No saved queries.</div>';
+        return;
+      }
+      saved.forEach((item, idx) => {
+        const row = document.createElement('div');
+        row.className = 'flex items-center gap-2';
+        row.innerHTML = `
+          <button class="flex-1 text-left px-3 py-2 rounded bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600">${item.name}</button>
+          <button class="px-2 py-1 text-xs rounded bg-rose-600 text-white" data-del="${idx}">Del</button>
+        `;
+        row.querySelector('button').addEventListener('click', ()=> setSQL(item.sql));
+        row.querySelector('[data-del]').addEventListener('click', ()=>{
+          const arr = JSON.parse(localStorage.getItem('saved_queries') || '[]');
+          arr.splice(idx,1);
+          localStorage.setItem('saved_queries', JSON.stringify(arr));
+          loadSaved();
+        });
+        list.appendChild(row);
+      });
+    }
+
+    // CSV COPY / DOWNLOAD
+    function copyCSV(){
+      if (!lastRows.length){ alert('No results to copy.'); return; }
+      const csv = toCSV(lastColumns, lastRows);
+      navigator.clipboard.writeText(csv).then(()=> {
+        const old = document.getElementById('status').textContent;
+        document.getElementById('status').textContent = 'CSV copied';
+        setTimeout(()=> document.getElementById('status').textContent = old, 1200);
+      });
+    }
+    function downloadCSV(){
+      if (!lastRows.length){ alert('No results to download.'); return; }
+      const csv = toCSV(lastColumns, lastRows);
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = 'results.csv';
+      document.body.appendChild(a); a.click();
+      setTimeout(()=> { URL.revokeObjectURL(url); a.remove(); }, 0);
+    }
+
+    // DB SEED
+    async function seedDB(SQL){
+      db = new SQL.Database();
+
+      // Employees / Departments / Projects
+      db.run(`
+        CREATE TABLE departments (id INTEGER PRIMARY KEY, name TEXT);
+        INSERT INTO departments (id, name) VALUES
+          (10, 'Engineering'), (20, 'Marketing'), (30, 'Finance'), (40, 'Operations');
+
+        CREATE TABLE employees (
+          id INTEGER PRIMARY KEY,
+          name TEXT,
+          department_id INTEGER,
+          salary REAL,
+          hired_at TEXT,
+          FOREIGN KEY(department_id) REFERENCES departments(id)
+        );
+        INSERT INTO employees (id, name, department_id, salary, hired_at) VALUES
+          (1,'Alice',10,  95000,'2022-04-10'),
+          (2,'Bob',20,    65000,'2023-02-01'),
+          (3,'Charlie',30,72000,'2021-11-05'),
+          (4,'Diana',10, 110000,'2020-08-22'),
+          (5,'Ethan',40,  80000,'2024-06-12'),
+          (6,'Farah',10,  99000,'2023-09-01');
+
+        CREATE TABLE projects (
+          id INTEGER PRIMARY KEY,
+          name TEXT,
+          department_id INTEGER,
+          start_date TEXT
+        );
+        INSERT INTO projects (id, name, department_id, start_date) VALUES
+          (101,'Data Platform Revamp',10,'2024-01-05'),
+          (102,'Brand Campaign',20,'2024-03-12'),
+          (103,'Cost Audit',30,'2023-10-01');
+
+        CREATE TABLE project_assignments (
+          project_id INTEGER,
+          employee_id INTEGER
+        );
+        INSERT INTO project_assignments VALUES
+          (101,1),(101,4),(101,6),
+          (102,2),
+          (103,3);
+      `);
+
+      // Customers / Orders (sales-style)
+      db.run(`
+        CREATE TABLE customers (
+          id INTEGER PRIMARY KEY,
+          name TEXT,
+          city TEXT
+        );
+        INSERT INTO customers (id, name, city) VALUES
+          (201,'Nova Foods','Toronto'),
+          (202,'Zen Merch','Vancouver'),
+          (203,'Acme Retail','Montreal'),
+          (204,'Polar Co','Calgary');
+
+        CREATE TABLE orders (
+          id INTEGER PRIMARY KEY,
+          customer_id INTEGER,
+          order_date TEXT,
+          amount REAL
+        );
+        INSERT INTO orders (id, customer_id, order_date, amount) VALUES
+          (1001,201,'2024-05-02',1200.50),
+          (1002,202,'2024-05-13', 980.00),
+          (1003,201,'2024-06-07', 640.25),
+          (1004,203,'2024-06-11', 320.00),
+          (1005,201,'2024-07-03', 450.75),
+          (1006,204,'2024-07-21', 999.99),
+          (1007,203,'2024-07-28', 250.00),
+          (1008,204,'2024-08-04', 500.00);
+      `);
+    }
+
+    // RESET DB
+    async function resetDB(){
+      const SQL = await initSqlJs({ locateFile: file => `https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.6.2/${file}` });
+      await seedDB(SQL);
+      updateSchema();
+      setSQL(`-- DB reset. Try a query!\nSELECT name, salary FROM employees ORDER BY salary DESC LIMIT 5;`);
+      document.getElementById('results').innerHTML = '';
+      document.getElementById('result-meta').textContent = '—';
+      document.getElementById('status').textContent = 'Ready';
+      document.getElementById('status').className = 'ml-auto text-sm text-gray-500 dark:text-gray-400';
+    }
+
+    // CSV IMPORT
+    function importCSV(file, tableName){
+      if (!file || !tableName){ alert('Pick a CSV file and table name.'); return; }
+      Papa.parse(file, {
+        header: true,
+        skipEmptyLines: true,
+        complete: function(results){
+          const rows = results.data;
+          if (!rows.length){ alert('Empty CSV'); return; }
+
+          const columns = Object.keys(rows[0]);
+          const safeName = tableName.replace(/[^a-zA-Z0-9_]/g,'_');
+          const colDefs = columns.map(c => `${c.replace(/[^a-zA-Z0-9_]/g,'_')} TEXT`).join(', ');
+          db.run(`CREATE TABLE ${safeName} (${colDefs});`);
+
+          const placeholders = columns.map(_=> '?').join(',');
+          const stmt = db.prepare(`INSERT INTO ${safeName} VALUES (${placeholders})`);
+          rows.forEach(r => stmt.run(columns.map(c => r[c])));
+          stmt.free();
+
+          updateSchema();
+          setSQL(`SELECT * FROM ${safeName} LIMIT 20;`);
+          runSQL();
+        }
+      });
+    }
+
+    // INIT
+    (async function init(){
+      await resetDB();
+
+      // Buttons
+      document.getElementById('run').addEventListener('click', runSQL);
+      document.getElementById('format').addEventListener('click', ()=> setSQL(formatSQL(getSQL())));
+      document.getElementById('clear').addEventListener('click', ()=> setSQL(''));
+      document.getElementById('copy-csv').addEventListener('click', copyCSV);
+      document.getElementById('download-csv').addEventListener('click', downloadCSV);
+      document.getElementById('reset-db').addEventListener('click', resetDB);
+
+      // Keyboard shortcut
+      document.addEventListener('keydown', (e)=>{
+        if ((e.ctrlKey || e.metaKey) && e.key === 'Enter'){ e.preventDefault(); runSQL(); }
+      });
+
+      // Examples
+      document.querySelectorAll('[data-example]').forEach(btn=>{
+        btn.addEventListener('click', ()=>{
+          const k = btn.getAttribute('data-example');
+          setSQL(EXAMPLES[k] || '');
+        });
+      });
+
+      // Saved queries
+      loadSaved();
+      document.getElementById('save-query').addEventListener('click', ()=>{
+        const name = prompt('Save query as (name):');
+        if (!name) return;
+        const sql = getSQL();
+        const arr = JSON.parse(localStorage.getItem('saved_queries') || '[]');
+        arr.push({ name, sql });
+        localStorage.setItem('saved_queries', JSON.stringify(arr));
+        loadSaved();
+      });
+      document.getElementById('clear-saved').addEventListener('click', ()=>{
+        if (confirm('Clear all saved queries?')) {
+          localStorage.removeItem('saved_queries');
+          loadSaved();
+        }
+      });
+
+      // CSV import
+      document.getElementById('import-csv').addEventListener('click', ()=>{
+        const f = document.getElementById('csv-file').files[0];
+        const t = document.getElementById('csv-table-name').value.trim();
+        importCSV(f, t);
+      });
+    })();
   </script>
 </body>
 </html>
