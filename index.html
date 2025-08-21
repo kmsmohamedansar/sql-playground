@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>SQL Practice Playground</title>
+  <meta name="description" content="Interactive SQL Practice Sandbox — Run queries in your browser">
+  <meta name="theme-color" content="#0f172a" />
+
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- SQL.js (SQLite in WebAssembly) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.6.2/sql-wasm.js"></script>
+
+  <style>
+    body { font-family: 'Inter', sans-serif; }
+    textarea { font-family: monospace; }
+  </style>
+</head>
+<body class="bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100 min-h-screen flex flex-col">
+
+  <!-- NAVBAR -->
+  <nav class="bg-white/80 dark:bg-gray-800/70 backdrop-blur sticky top-0 shadow">
+    <div class="max-w-6xl mx-auto px-4 py-3 flex justify-between items-center">
+      <a href="#" class="font-bold text-xl">SQL Playground</a>
+      <a href="https://github.com/kmsmohamedansar/sql-playground" target="_blank" class="text-sm underline">GitHub</a>
+    </div>
+  </nav>
+
+  <!-- HERO -->
+  <header class="text-center py-12">
+    <h1 class="text-4xl font-extrabold bg-gradient-to-r from-blue-500 via-purple-600 to-pink-500 bg-clip-text text-transparent">
+      Practice SQL in your Browser
+    </h1>
+    <p class="mt-3 text-gray-600 dark:text-gray-300">
+      Type a query, run it, and see results instantly (powered by SQLite in WebAssembly).
+    </p>
+  </header>
+
+  <!-- MAIN SQL APP -->
+  <main class="flex-1 max-w-5xl mx-auto px-4 pb-16">
+    <div class="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6">
+      <label for="sql-input" class="block text-sm font-medium mb-2">💻 Write SQL Query</label>
+      <textarea id="sql-input"
+        class="w-full p-3 border rounded-lg bg-gray-50 dark:bg-gray-900 dark:border-gray-700"
+        rows="5">SELECT * FROM employees;</textarea>
+      
+      <button onclick="runSQL()"
+        class="mt-4 px-5 py-2 bg-blue-600 text-white rounded-lg shadow hover:bg-blue-700">
+        Run Query ▶
+      </button>
+      
+      <div id="results" class="mt-6 overflow-x-auto text-sm"></div>
+    </div>
+  </main>
+
+  <!-- FOOTER -->
+  <footer class="text-center py-6 text-gray-500 dark:text-gray-400 text-sm">
+    Built with ❤️ using sql.js + Tailwind · Hosted on GitHub Pages
+  </footer>
+
+  <!-- SQL.js logic -->
+  <script>
+    let db;
+    initSqlJs({ locateFile: file => `https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.6.2/${file}` })
+      .then(SQL => {
+        db = new SQL.Database();
+        // Seed demo data
+        db.run(`
+          CREATE TABLE employees (id INTEGER, name TEXT, department TEXT, salary REAL);
+          INSERT INTO employees VALUES (1, 'Alice', 'Engineering', 85000);
+          INSERT INTO employees VALUES (2, 'Bob', 'Marketing', 65000);
+          INSERT INTO employees VALUES (3, 'Charlie', 'Finance', 72000);
+          INSERT INTO employees VALUES (4, 'Diana', 'Engineering', 90000);
+        `);
+      });
+
+    function runSQL() {
+      const sql = document.getElementById("sql-input").value;
+      let resultsHTML = "";
+      try {
+        const res = db.exec(sql);
+        if (res.length === 0) {
+          resultsHTML = "<p class='text-gray-500'>No results.</p>";
+        } else {
+          res.forEach(table => {
+            resultsHTML += "<table class='table-auto border-collapse border border-gray-400 mt-4 w-full'>";
+            resultsHTML += "<thead><tr>";
+            table.columns.forEach(col => resultsHTML += `<th class='border px-2 py-1 bg-gray-100 dark:bg-gray-700'>${col}</th>`);
+            resultsHTML += "</tr></thead><tbody>";
+            table.values.forEach(row => {
+              resultsHTML += "<tr>";
+              row.forEach(val => resultsHTML += `<td class='border px-2 py-1'>${val}</td>`);
+              resultsHTML += "</tr>";
+            });
+            resultsHTML += "</tbody></table>";
+          });
+        }
+      } catch (err) {
+        resultsHTML = `<p class='text-red-600'>Error: ${err.message}</p>`;
+      }
+      document.getElementById("results").innerHTML = resultsHTML;
+    }
+  </script>
+</body>
+</html>
