@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Mohamed’s SQL Playground — Snowflake Style (Enhanced)</title>
+  <title>Mohamed’s SQL Playground: Snowflake Style (Enhanced)</title>
   <meta name="description" content="Practice Snowflake-flavored SQL in your browser. SQLite (sql.js) with a translation layer: DESCRIBE, SHOW, ILIKE, DATE_TRUNC, QUALIFY, and more." />
   <meta name="theme-color" content="#0ea5e9" />
 
@@ -449,7 +449,7 @@ SELECT DATE_TRUNC('month', order_date) AS month, SUM(amount) FROM orders GROUP B
         status.className = 'text-emerald-600';
       } catch (err) {
         resultsEl.innerHTML = `<p class=\"text-rose-600\">Error: ${err.message}</p>`;
-        document.getElementById('result-meta').textContent = '—';
+        document.getElementById('result-meta').textContent = '-';
         status.textContent = 'Error';
         document.getElementById('status-dot').style.backgroundColor = '#ef4444';
       }
@@ -579,7 +579,7 @@ SELECT DATE_TRUNC('month', order_date) AS month, SUM(amount) FROM orders GROUP B
       const last = localStorage.getItem('last_query');
       setSQL(last || `-- DB reset. Try Snowflake-style commands.\nDESCRIBE TABLE employees;\nSHOW TABLES;`);
       document.getElementById('results').innerHTML = '';
-      document.getElementById('result-meta').textContent = '—';
+      document.getElementById('result-meta').textContent = '-';
       document.getElementById('status').textContent = 'Ready';
       document.getElementById('status').className = 'text-gray-500 dark:text-gray-400';
       document.getElementById('status-dot').style.backgroundColor = '#9ca3af';
