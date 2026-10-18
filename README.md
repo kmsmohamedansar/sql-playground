@@ -1,5 +1,12 @@
 # sql-playground
 
+## In plain English
+
+A small browser workspace for practising SQL without installing a database. It is intended for people learning how to ask useful questions of data and see the result immediately.
+
+**Status:** Public browser demonstration maintained as needed.
+
+
 Browser-based SQL workspace using SQLite in WASM, with helpers that mirror common warehouse-style patterns.
 
 ## Goal
